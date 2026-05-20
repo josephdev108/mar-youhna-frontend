@@ -2,8 +2,16 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Navigate, Route, Routes, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import api from './api'
 import TripReservations from './TripReservations'
+import TripDayAttendance from './TripDayAttendance'
 import VisitationSessions from './VisitationSessions'
 import VisitationSessionDetail from './VisitationSessionDetail'
+import Dashboard from './Dashboard'
+import BrandLogo from './BrandLogo'
+import { useBranding } from './BrandingContext'
+import Settings from './Settings'
+import Programs from './Programs'
+import ProgramDetail from './ProgramDetail'
+import ProgramView from './ProgramView'
 
 // ─── Inline SVG Icons ────────────────────────────────────────────────────────
 const Icon = {
@@ -94,6 +102,22 @@ const Icon = {
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
     </svg>
   ),
+  chart: (cls) => (
+    <svg className={cls} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+    </svg>
+  ),
+  settings: (cls) => (
+    <svg className={cls} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+    </svg>
+  ),
+  program: (cls) => (
+    <svg className={cls} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+    </svg>
+  ),
 }
 
 // ─── Modal ────────────────────────────────────────────────────────────────────
@@ -134,7 +158,7 @@ function Toast({ message, type, onClose }) {
   const styles = {
     success: 'bg-emerald-500',
     error: 'bg-red-500',
-    info: 'bg-blue-500',
+    info: 'bg-church-700',
   }
 
   return (
@@ -149,13 +173,16 @@ function Toast({ message, type, onClose }) {
 
 // ─── Navigation config ────────────────────────────────────────────────────────
 const NAV = [
+  { key: 'dashboard',  label: 'لوحة التحكم', icon: 'chart',     path: '/dashboard', adminOnly: false },
   { key: 'members',    label: 'المخدومين',  icon: 'users',     path: '/members', adminOnly: false },
-  { key: 'birthdays',  label: 'الميلاد',    icon: 'calendar',  path: '/birthdays', adminOnly: false },
+  { key: 'birthdays',  label: 'أعياد الميلاد', icon: 'calendar', path: '/birthdays', adminOnly: false },
   { key: 'servants',   label: 'الخدام',     icon: 'users',     path: '/servants', adminOnly: true },
+  { key: 'programs',   label: 'البرامج',   icon: 'program',   path: '/programs', adminOnly: false },
   { key: 'lectures',   label: 'المحاضرات', icon: 'book',      path: '/lectures', adminOnly: false },
   { key: 'attendance', label: 'الحضور',    icon: 'clipboard', path: '/attendance', adminOnly: false },
   { key: 'trips',      label: 'الرحلات',   icon: 'trip',      path: '/trips', adminOnly: false },
   { key: 'visitations', label: 'الافتقاد', icon: 'home',      path: '/visitations', adminOnly: false },
+  { key: 'settings',    label: 'الإعدادات', icon: 'settings', path: '/settings', adminOnly: true },
 ]
 
 function currentMonthPeriod() {
@@ -191,6 +218,7 @@ export default function App() {
   const [drawerOpen, setDrawerOpen] = useState(false)
 
   const isAdmin = user?.type === 'administrator'
+  const { branding } = useBranding()
   const navItems = NAV.filter((item) => !item.adminOnly || isAdmin)
   const navigate   = useNavigate()
   const location   = useLocation()
@@ -252,22 +280,22 @@ export default function App() {
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
 
       {/* ── Sidebar (desktop) ── */}
-      <aside className="hidden md:flex h-full w-60 shrink-0 flex-col bg-gradient-to-b from-blue-700 to-indigo-800">
+      <aside className="sidebar-shell hidden md:flex h-full w-60 shrink-0 flex-col">
         {/* Brand */}
-        <div className="p-5 border-b border-white/10">
-          <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/20">
-              {Icon.clipboard('w-5 h-5 text-white')}
-            </div>
+        <div className="border-b border-gold-500/20 p-4">
+          <div className="flex flex-col items-center gap-2 text-center">
+            <BrandLogo className="h-16 w-16 drop-shadow-md" />
             <div>
-              <h1 className="text-sm font-bold leading-tight text-white">اجتماع ماريوحنا</h1>
-              <p className="text-[10px] text-blue-200 mt-0.5">لوحة التحكم</p>
+              <h1 className="text-xs font-bold leading-snug text-white">{branding.app_name}</h1>
+              {branding.app_subtitle && (
+                <p className="mt-0.5 text-[10px] text-gold-200">{branding.app_subtitle}</p>
+              )}
             </div>
           </div>
         </div>
 
         {/* Stats */}
-        <div className="p-4 border-b border-white/10 space-y-2.5">
+        <div className="space-y-2.5 border-b border-gold-500/20 p-4">
           <SidebarStat icon="users"     label="إجمالي المخدومين"  value={members.length} />
           <SidebarStat icon="book"      label="إجمالي المحاضرات" value={lectures.length} />
           <SidebarStat icon="clipboard" label="متوسط الحضور"      value={avgAttendance} />
@@ -281,8 +309,8 @@ export default function App() {
               onClick={() => navigate(item.path)}
               className={`flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-bold transition-all ${
                 location.pathname === item.path || location.pathname.startsWith(`${item.path}/`)
-                  ? 'bg-white text-blue-700 shadow-md'
-                  : 'text-blue-100 hover:bg-white/10 hover:text-white'
+                  ? 'nav-active'
+                  : 'nav-inactive'
               }`}
             >
               {Icon[item.icon]('w-5 h-5 shrink-0')}
@@ -295,7 +323,7 @@ export default function App() {
         <div className="p-4 border-t border-white/10">
           <button
             onClick={handleLogout}
-            className="flex w-full items-center gap-3 rounded-xl px-4 py-2.5 text-sm font-medium text-blue-100 transition-colors hover:bg-white/10 hover:text-white"
+            className="flex w-full items-center gap-3 rounded-xl px-4 py-2.5 text-sm font-medium text-gold-100 transition-colors hover:bg-white/10 hover:text-white"
           >
             {Icon.logout('w-5 h-5 shrink-0')}
             <span>خروج</span>
@@ -306,16 +334,14 @@ export default function App() {
       {/* ── Main ── */}
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto">
         {/* ── Mobile header ── */}
-        <header className="md:hidden sticky top-0 z-20 bg-gradient-to-l from-blue-700 to-indigo-800 shadow-lg">
+        <header className="sidebar-shell sticky top-0 z-20 shadow-lg md:hidden">
           <div className="flex items-center justify-between px-4 py-3">
             {/* Brand */}
             <div className="flex min-w-0 items-center gap-2.5">
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-white/20">
-                {Icon.clipboard('w-4 h-4 text-white')}
-              </div>
+              <BrandLogo className="h-9 w-9 shrink-0 rounded-lg bg-white/90 p-0.5" />
               <div className="min-w-0">
-                <h1 className="truncate text-sm font-bold leading-tight text-white">اجتماع ماريوحنا للخريجين</h1>
-                <p className="text-[10px] font-medium text-blue-200">
+                <h1 className="truncate text-sm font-bold leading-tight text-white">{branding.app_name}</h1>
+                <p className="text-[10px] font-medium text-gold-200">
                   {navItems.find((n) => location.pathname === n.path || location.pathname.startsWith(n.path + '/'))?.label ?? 'لوحة التحكم'}
                 </p>
               </div>
@@ -341,16 +367,16 @@ export default function App() {
             className={`absolute inset-0 bg-black/50 backdrop-blur-sm transition-opacity duration-300 ${drawerOpen ? 'opacity-100' : 'opacity-0'}`}
           />
           {/* Panel slides in from right (RTL start) */}
-          <div className={`absolute inset-y-0 right-0 flex w-72 max-w-[85vw] flex-col bg-gradient-to-b from-blue-700 to-indigo-800 shadow-2xl transition-transform duration-300 ${drawerOpen ? 'translate-x-0' : 'translate-x-full'}`}>
+          <div className={`sidebar-shell absolute inset-y-0 right-0 flex w-72 max-w-[85vw] flex-col shadow-2xl transition-transform duration-300 ${drawerOpen ? 'translate-x-0' : 'translate-x-full'}`}>
             {/* Drawer header */}
-            <div className="flex items-center justify-between border-b border-white/10 p-5">
+            <div className="flex items-center justify-between border-b border-gold-500/20 p-5">
               <div className="flex items-center gap-3">
-                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/20">
-                  {Icon.clipboard('w-5 h-5 text-white')}
-                </div>
+                <BrandLogo className="h-11 w-11 rounded-lg bg-white/90 p-0.5" />
                 <div>
-                  <p className="text-sm font-bold leading-tight text-white">اجتماع ماريوحنا</p>
-                  <p className="text-[10px] text-blue-200">لوحة التحكم</p>
+                  <p className="text-sm font-bold leading-tight text-white">{branding.app_name}</p>
+                  {branding.app_subtitle && (
+                    <p className="text-[10px] text-gold-200">{branding.app_subtitle}</p>
+                  )}
                 </div>
               </div>
               <button
@@ -378,8 +404,8 @@ export default function App() {
                     onClick={() => navigate(item.path)}
                     className={`flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-bold transition-all ${
                       active
-                        ? 'bg-white text-blue-700 shadow-md'
-                        : 'text-blue-100 hover:bg-white/10 hover:text-white'
+                        ? 'nav-active'
+                        : 'nav-inactive'
                     }`}
                   >
                     {Icon[item.icon]('w-5 h-5 shrink-0')}
@@ -393,7 +419,7 @@ export default function App() {
             <div className="border-t border-white/10 p-4" style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}>
               <button
                 onClick={handleLogout}
-                className="flex w-full items-center gap-3 rounded-xl px-4 py-2.5 text-sm font-medium text-blue-100 transition-colors hover:bg-white/10 hover:text-white"
+                className="flex w-full items-center gap-3 rounded-xl px-4 py-2.5 text-sm font-medium text-gold-100 transition-colors hover:bg-white/10 hover:text-white"
               >
                 {Icon.logout('w-5 h-5 shrink-0')}
                 <span>خروج</span>
@@ -404,20 +430,27 @@ export default function App() {
 
         {/* Content */}
         <main className="flex-1 p-4 md:p-6">
-          <div className="mx-auto max-w-4xl">
+          <div className={`mx-auto ${location.pathname === '/dashboard' || location.pathname.startsWith('/programs') ? 'max-w-6xl' : 'max-w-4xl'}`}>
             <Routes>
-              <Route index element={<Navigate to="/members" replace />} />
+              <Route index element={<Navigate to="/dashboard" replace />} />
+              <Route path="/dashboard" element={<Dashboard isAdmin={isAdmin} />} />
               <Route path="/members"    element={<Members    members={members}   reload={loadMembers}  showToast={showToast} />} />
               <Route path="/members/:id" element={<MemberProfile showToast={showToast} />} />
               <Route path="/birthdays"  element={<Birthdays showToast={showToast} />} />
+              <Route path="/programs" element={<Programs showToast={showToast} Icon={Icon} />} />
+              <Route path="/programs/new" element={<ProgramDetail showToast={showToast} Icon={Icon} />} />
+              <Route path="/programs/:id/edit" element={<ProgramDetail showToast={showToast} Icon={Icon} />} />
+              <Route path="/programs/:id" element={<ProgramView showToast={showToast} Icon={Icon} />} />
               <Route path="/lectures"   element={<Lectures   user={user} lectures={lectures} reload={loadLectures} showToast={showToast} onGoToAttendance={goToAttendance} />} />
               <Route path="/attendance" element={<Attendance members={members} reloadMembers={loadMembers} lectures={lectures} showToast={showToast} />} />
               <Route path="/trips"      element={<Trips trips={trips} reload={loadTrips} showToast={showToast} />} />
               <Route path="/trips/:id/reservations" element={<TripReservations showToast={showToast} Modal={Modal} Icon={Icon} />} />
+              <Route path="/trips/:id/day-attendance" element={<TripDayAttendance showToast={showToast} Modal={Modal} Icon={Icon} />} />
               <Route path="/visitations" element={<VisitationSessions showToast={showToast} Modal={Modal} Icon={Icon} />} />
               <Route path="/visitations/:id" element={<VisitationSessionDetail showToast={showToast} Modal={Modal} Icon={Icon} />} />
               <Route path="/servants"   element={<Servants servants={servants} reload={loadServants} showToast={showToast} />} />
-              <Route path="*"           element={<Navigate to="/members" replace />} />
+              <Route path="/settings"   element={<Settings showToast={showToast} />} />
+              <Route path="*"           element={<Navigate to="/dashboard" replace />} />
             </Routes>
           </div>
         </main>
@@ -431,8 +464,8 @@ function SidebarStat({ icon, label, value }) {
   return (
     <div className="flex items-center justify-between text-sm">
       <div className="flex items-center gap-2 min-w-0">
-        {Icon[icon]('w-3.5 h-3.5 text-blue-300 shrink-0')}
-        <span className="text-blue-200 truncate text-xs">{label}</span>
+        {Icon[icon]('w-3.5 h-3.5 shrink-0 text-gold-400')}
+        <span className="truncate text-xs text-gold-100">{label}</span>
       </div>
       <span className="font-bold text-white">{value}</span>
     </div>
@@ -442,8 +475,8 @@ function SidebarStat({ icon, label, value }) {
 // ─── Stat Card ────────────────────────────────────────────────────────────────
 function StatCard({ icon, label, value, color }) {
   const palette = {
-    blue:    'bg-blue-50 text-blue-600',
-    indigo:  'bg-indigo-50 text-indigo-600',
+    blue:    'bg-church-50 text-church-800',
+    indigo:  'bg-church-50 text-church-800',
     emerald: 'bg-emerald-50 text-emerald-600',
   }
   return (
@@ -647,7 +680,7 @@ function Members({ members, reload, showToast }) {
                   الاسم الكامل <span className="text-red-500">*</span>
                 </label>
                 <input
-                  className="w-full rounded-xl border border-slate-200 p-2.5 text-sm focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                  className="w-full rounded-xl border border-slate-200 p-2.5 text-sm focus:border-gold-400 focus:outline-none focus:ring-2 focus:ring-gold-100"
                   placeholder="اسم المخدوم"
                   value={form.name}
                   onChange={setField('name')}
@@ -660,7 +693,7 @@ function Members({ members, reload, showToast }) {
                   رقم الموبايل <span className="text-red-500">*</span>
                 </label>
                 <input
-                  className="w-full rounded-xl border border-slate-200 p-2.5 text-sm focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                  className="w-full rounded-xl border border-slate-200 p-2.5 text-sm focus:border-gold-400 focus:outline-none focus:ring-2 focus:ring-gold-100"
                   placeholder="01xxxxxxxxx"
                   value={form.phone}
                   onChange={setField('phone')}
@@ -670,7 +703,7 @@ function Members({ members, reload, showToast }) {
               <div>
                 <label className="mb-1 block text-xs font-medium text-slate-500">الدفعة</label>
                 <input
-                  className="w-full rounded-xl border border-slate-200 p-2.5 text-sm focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                  className="w-full rounded-xl border border-slate-200 p-2.5 text-sm focus:border-gold-400 focus:outline-none focus:ring-2 focus:ring-gold-100"
                   placeholder="مثال: 2024"
                   value={form.batch}
                   onChange={setField('batch')}
@@ -683,7 +716,7 @@ function Members({ members, reload, showToast }) {
               <div className="sm:col-span-2">
                 <label className="mb-1 block text-xs font-medium text-slate-500">العنوان</label>
                 <input
-                  className="w-full rounded-xl border border-slate-200 p-2.5 text-sm focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                  className="w-full rounded-xl border border-slate-200 p-2.5 text-sm focus:border-gold-400 focus:outline-none focus:ring-2 focus:ring-gold-100"
                   placeholder="العنوان بالتفصيل"
                   value={form.address}
                   onChange={setField('address')}
@@ -692,7 +725,7 @@ function Members({ members, reload, showToast }) {
               <div>
                 <label className="mb-1 block text-xs font-medium text-slate-500">الكنيسة</label>
                 <input
-                  className="w-full rounded-xl border border-slate-200 p-2.5 text-sm focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                  className="w-full rounded-xl border border-slate-200 p-2.5 text-sm focus:border-gold-400 focus:outline-none focus:ring-2 focus:ring-gold-100"
                   placeholder="اسم الكنيسة"
                   value={form.church}
                   onChange={setField('church')}
@@ -701,7 +734,7 @@ function Members({ members, reload, showToast }) {
               <div>
                 <label className="mb-1 block text-xs font-medium text-slate-500">أب الاعتراف</label>
                 <input
-                  className="w-full rounded-xl border border-slate-200 p-2.5 text-sm focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                  className="w-full rounded-xl border border-slate-200 p-2.5 text-sm focus:border-gold-400 focus:outline-none focus:ring-2 focus:ring-gold-100"
                   placeholder="اسم الأب"
                   value={form.confession_father}
                   onChange={setField('confession_father')}
@@ -711,7 +744,7 @@ function Members({ members, reload, showToast }) {
                 <label className="mb-1 block text-xs font-medium text-slate-500">تاريخ الميلاد</label>
                 <input
                   type="date"
-                  className="w-full rounded-xl border border-slate-200 p-2.5 text-sm focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                  className="w-full rounded-xl border border-slate-200 p-2.5 text-sm focus:border-gold-400 focus:outline-none focus:ring-2 focus:ring-gold-100"
                   value={form.birth_date}
                   onChange={setField('birth_date')}
                 />
@@ -728,7 +761,7 @@ function Members({ members, reload, showToast }) {
               <button
                 type="submit"
                 disabled={loading}
-                className="flex-1 rounded-xl bg-blue-600 py-3 text-sm font-bold text-white transition-colors hover:bg-blue-700 disabled:opacity-60"
+                className="flex-1 rounded-xl bg-church-800 py-3 text-sm font-bold text-white transition-colors hover:bg-church-900 disabled:opacity-60"
               >
                 {loading ? '...' : editingMember ? 'حفظ التعديلات' : 'إضافة'}
               </button>
@@ -747,13 +780,13 @@ function Members({ members, reload, showToast }) {
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pr-9 pl-4 text-sm shadow-sm focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
+              className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pr-9 pl-4 text-sm shadow-sm focus:border-gold-400 focus:outline-none focus:ring-2 focus:ring-gold-100"
               placeholder="بحث بالاسم أو الموبايل..."
             />
           </div>
           <button
             onClick={openAdd}
-            className="flex shrink-0 items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm transition-colors hover:bg-blue-700"
+            className="flex shrink-0 items-center gap-2 rounded-xl bg-church-800 px-4 py-2.5 text-sm font-bold text-white shadow-sm transition-colors hover:bg-church-900"
           >
             {Icon.plus('w-4 h-4')}
             <span>جديد</span>
@@ -764,7 +797,7 @@ function Members({ members, reload, showToast }) {
             onClick={() => setShowFilters((v) => !v)}
             className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl border px-3 py-2 text-sm font-bold transition-colors ${
               hasFilters
-                ? 'border-blue-300 bg-blue-50 text-blue-700'
+                ? 'border-gold-400 bg-church-50 text-church-800'
                 : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50 shadow-sm'
             }`}
           >
@@ -773,7 +806,7 @@ function Members({ members, reload, showToast }) {
             </svg>
             <span>فلاتر</span>
             {hasFilters && (
-              <span className="flex h-4 w-4 items-center justify-center rounded-full bg-blue-600 text-[10px] font-bold text-white">
+              <span className="flex h-4 w-4 items-center justify-center rounded-full bg-church-800 text-[10px] font-bold text-white">
                 {[batchFilter, absenceFilter, birthDateFrom, birthDateTo].filter(Boolean).length}
               </span>
             )}
@@ -810,7 +843,7 @@ function Members({ members, reload, showToast }) {
               <input
                 value={batchFilter}
                 onChange={(e) => setBatchFilter(e.target.value)}
-                className="w-full rounded-xl border border-slate-200 p-2.5 text-sm focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                className="w-full rounded-xl border border-slate-200 p-2.5 text-sm focus:border-gold-400 focus:outline-none focus:ring-2 focus:ring-gold-100"
                 placeholder="اسم أو رقم الدفعة"
               />
             </div>
@@ -821,7 +854,7 @@ function Members({ members, reload, showToast }) {
                 min="0"
                 value={absenceFilter}
                 onChange={(e) => setAbsenceFilter(e.target.value)}
-                className="w-full rounded-xl border border-slate-200 p-2.5 text-sm focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                className="w-full rounded-xl border border-slate-200 p-2.5 text-sm focus:border-gold-400 focus:outline-none focus:ring-2 focus:ring-gold-100"
                 placeholder="عدد الغيابات"
               />
             </div>
@@ -837,7 +870,7 @@ function Members({ members, reload, showToast }) {
                   type="date"
                   value={birthDateFrom}
                   onChange={(e) => setBirthDateFrom(e.target.value)}
-                  className="w-full rounded-xl border border-slate-200 p-2.5 text-sm focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                  className="w-full rounded-xl border border-slate-200 p-2.5 text-sm focus:border-gold-400 focus:outline-none focus:ring-2 focus:ring-gold-100"
                 />
               </div>
               <div>
@@ -846,7 +879,7 @@ function Members({ members, reload, showToast }) {
                   type="date"
                   value={birthDateTo}
                   onChange={(e) => setBirthDateTo(e.target.value)}
-                  className="w-full rounded-xl border border-slate-200 p-2.5 text-sm focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                  className="w-full rounded-xl border border-slate-200 p-2.5 text-sm focus:border-gold-400 focus:outline-none focus:ring-2 focus:ring-gold-100"
                 />
               </div>
             </div>
@@ -873,7 +906,7 @@ function Members({ members, reload, showToast }) {
                 type="file"
                 accept=".xlsx,.xls"
                 onChange={(e) => { setImportFile(e.target.files?.[0] ?? null); setHeaders([]) }}
-                className="flex-1 rounded-xl border border-slate-200 p-2.5 text-sm text-slate-600 file:ml-2 file:rounded-lg file:border-0 file:bg-blue-50 file:px-3 file:py-1 file:text-xs file:font-bold file:text-blue-700"
+                className="flex-1 rounded-xl border border-slate-200 p-2.5 text-sm text-slate-600 file:ml-2 file:rounded-lg file:border-0 file:bg-church-50 file:px-3 file:py-1 file:text-xs file:font-bold file:text-church-800"
               />
               <button
                 onClick={previewImport}
@@ -940,7 +973,7 @@ function Members({ members, reload, showToast }) {
         <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3.5">
           <h2 className="font-bold text-slate-700">
             قائمة المخدومين
-            <span className="mr-2 rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-700">
+            <span className="mr-2 rounded-full bg-gold-100 px-2.5 py-0.5 text-xs font-medium text-church-800">
               {filtered.length}
             </span>
           </h2>
@@ -977,15 +1010,15 @@ function Members({ members, reload, showToast }) {
                 return (
                   <div key={m.id} className="p-4">
                     <div className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-100 text-sm font-bold text-blue-600">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gold-100 text-sm font-bold text-church-800">
                         {m.name.charAt(0)}
                       </div>
                       <div className="min-w-0 flex-1">
-                        <button type="button" onClick={() => navigate(`/members/${m.id}`)} className="truncate text-right font-medium text-slate-800 hover:text-blue-600">{m.name}</button>
+                        <button type="button" onClick={() => navigate(`/members/${m.id}`)} className="truncate text-right font-medium text-slate-800 hover:text-church-800">{m.name}</button>
                         <p className="font-mono text-xs text-slate-400">{m.phone ?? '—'}</p>
                       </div>
                       <div className="flex shrink-0 gap-1">
-                        <button onClick={() => navigate(`/members/${m.id}`)} className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 active:bg-blue-50 active:text-blue-600">
+                        <button onClick={() => navigate(`/members/${m.id}`)} className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 active:bg-church-50 active:text-church-800">
                           {Icon.eye('w-4 h-4')}
                         </button>
                         <button onClick={() => openEdit(m)} className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 active:bg-amber-50 active:text-amber-600">
@@ -1033,10 +1066,10 @@ function Members({ members, reload, showToast }) {
                       <tr key={m.id} className="transition-colors hover:bg-slate-50">
                         <td className="px-5 py-3.5">
                           <div className="flex items-center gap-3">
-                            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-100 text-sm font-bold text-blue-600">
+                            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gold-100 text-sm font-bold text-church-800">
                               {m.name.charAt(0)}
                             </div>
-                            <button type="button" onClick={() => navigate(`/members/${m.id}`)} className="font-medium text-slate-800 hover:text-blue-600">{m.name}</button>
+                            <button type="button" onClick={() => navigate(`/members/${m.id}`)} className="font-medium text-slate-800 hover:text-church-800">{m.name}</button>
                           </div>
                         </td>
                         <td className="px-5 py-3.5 font-mono text-sm text-slate-500">{m.phone ?? '—'}</td>
@@ -1056,7 +1089,7 @@ function Members({ members, reload, showToast }) {
                         </td>
                         <td className="px-3 py-3.5">
                           <div className="flex items-center justify-center gap-1">
-                            <button onClick={() => navigate(`/members/${m.id}`)} title="الملف الشخصي" className="flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-blue-50 hover:text-blue-600">{Icon.eye('w-3.5 h-3.5')}</button>
+                            <button onClick={() => navigate(`/members/${m.id}`)} title="الملف الشخصي" className="flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-church-50 hover:text-church-800">{Icon.eye('w-3.5 h-3.5')}</button>
                             <button onClick={() => openEdit(m)} title="تعديل" className="flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-amber-50 hover:text-amber-600">{Icon.pencil('w-3.5 h-3.5')}</button>
                             <button onClick={() => setDeletingMemberId(m.id)} title="حذف" className="flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-red-50 hover:text-red-600">{Icon.trash('w-3.5 h-3.5')}</button>
                           </div>
@@ -1090,7 +1123,7 @@ function Members({ members, reload, showToast }) {
                       }
                       return pages.map((p, idx) =>
                         p === '…' ? <span key={`e${idx}`} className="px-1 text-sm text-slate-400">…</span>
-                          : <button key={p} onClick={() => setPage(p)} className={`flex h-8 w-8 items-center justify-center rounded-lg text-sm font-medium transition-colors ${safePage === p ? 'bg-blue-600 text-white' : 'text-slate-600 hover:bg-slate-100'}`}>{p}</button>
+                          : <button key={p} onClick={() => setPage(p)} className={`flex h-8 w-8 items-center justify-center rounded-lg text-sm font-medium transition-colors ${safePage === p ? 'bg-church-800 text-white' : 'text-slate-600 hover:bg-slate-100'}`}>{p}</button>
                       )
                     })()}
                   </div>
@@ -1138,7 +1171,7 @@ function MemberProfile() {
     return (
       <div className="py-20 text-center">
         <p className="text-slate-500">المخدوم غير موجود</p>
-        <button onClick={() => navigate('/members')} className="mt-4 font-bold text-blue-600">رجوع للقائمة</button>
+        <button onClick={() => navigate('/members')} className="mt-4 font-bold text-church-800">رجوع للقائمة</button>
       </div>
     )
   }
@@ -1161,20 +1194,20 @@ function MemberProfile() {
     <div className="space-y-4 pb-10">
       <button
         onClick={() => navigate('/members')}
-        className="flex items-center gap-2 text-sm font-bold text-blue-600 hover:text-blue-800"
+        className="flex items-center gap-2 text-sm font-bold text-church-800 hover:text-church-900"
       >
         {Icon.arrowLeft('w-4 h-4')}
         رجوع للمخدومين
       </button>
 
-      <div className="rounded-2xl bg-gradient-to-l from-blue-600 to-indigo-700 p-5 text-white shadow-lg">
+      <div className="rounded-2xl bg-gradient-to-l from-church-800 to-church-900 p-5 text-white shadow-lg">
         <div className="flex items-center gap-4">
           <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-white/20 text-2xl font-bold">
             {member.name.charAt(0)}
           </div>
           <div>
             <h1 className="text-xl font-bold">{member.name}</h1>
-            <p className="mt-1 font-mono text-sm text-blue-100">{member.phone}</p>
+            <p className="mt-1 font-mono text-sm text-gold-100">{member.phone}</p>
             {member.batch && <span className="mt-2 inline-block rounded-full bg-white/20 px-3 py-0.5 text-xs">دفعة {member.batch}</span>}
           </div>
         </div>
@@ -1220,9 +1253,9 @@ function MemberProfile() {
         </div>
 
         <div className="mb-4 grid grid-cols-3 gap-3">
-          <div className="rounded-xl bg-blue-50 p-3 text-center">
-            <p className="text-2xl font-bold text-blue-700">{summary.total_lectures}</p>
-            <p className="text-xs text-blue-600">{month ? 'محاضرات الشهر' : 'إجمالي المحاضرات'}</p>
+          <div className="rounded-xl bg-church-50 p-3 text-center">
+            <p className="text-2xl font-bold text-church-800">{summary.total_lectures}</p>
+            <p className="text-xs text-church-800">{month ? 'محاضرات الشهر' : 'إجمالي المحاضرات'}</p>
           </div>
           <div className="rounded-xl bg-emerald-50 p-3 text-center">
             <p className="text-2xl font-bold text-emerald-600">{summary.present_count}</p>
@@ -1374,7 +1407,7 @@ function Lectures({ user, lectures, reload, showToast, onGoToAttendance }) {
             <div>
               <label className="mb-1.5 block text-xs font-medium text-slate-500">عنوان المحاضرة <span className="text-red-500">*</span></label>
               <input
-                className="w-full rounded-xl border border-slate-200 p-3 text-sm focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                className="w-full rounded-xl border border-slate-200 p-3 text-sm focus:border-gold-400 focus:outline-none focus:ring-2 focus:ring-gold-100"
                 placeholder="عنوان المحاضرة"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
@@ -1386,7 +1419,7 @@ function Lectures({ user, lectures, reload, showToast, onGoToAttendance }) {
               <label className="mb-1.5 block text-xs font-medium text-slate-500">التاريخ <span className="text-red-500">*</span></label>
               <input
                 type="date"
-                className="w-full rounded-xl border border-slate-200 p-3 text-sm focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                className="w-full rounded-xl border border-slate-200 p-3 text-sm focus:border-gold-400 focus:outline-none focus:ring-2 focus:ring-gold-100"
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
                 required
@@ -1398,7 +1431,7 @@ function Lectures({ user, lectures, reload, showToast, onGoToAttendance }) {
                 <select
                   value={servantId}
                   onChange={(e) => setServantId(e.target.value)}
-                  className="w-full rounded-xl border border-slate-200 p-3 text-sm focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                  className="w-full rounded-xl border border-slate-200 p-3 text-sm focus:border-gold-400 focus:outline-none focus:ring-2 focus:ring-gold-100"
                 >
                   {servants.map((s) => (
                     <option key={s.id} value={s.id}>{s.name}</option>
@@ -1417,7 +1450,7 @@ function Lectures({ user, lectures, reload, showToast, onGoToAttendance }) {
               <button
                 type="submit"
                 disabled={loading}
-                className="flex-1 rounded-xl bg-indigo-600 py-3 text-sm font-bold text-white transition-colors hover:bg-indigo-700 disabled:opacity-60"
+                className="flex-1 rounded-xl bg-church-800 py-3 text-sm font-bold text-white transition-colors hover:bg-church-900 disabled:opacity-60"
               >
                 {loading ? '...' : editingLecture ? 'حفظ التعديل' : 'إنشاء'}
               </button>
@@ -1451,7 +1484,7 @@ function Lectures({ user, lectures, reload, showToast, onGoToAttendance }) {
       <div className="flex items-center justify-end">
         <button
           onClick={openAdd}
-          className="flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm transition-colors hover:bg-indigo-700"
+          className="flex items-center gap-2 rounded-xl bg-church-800 px-4 py-2.5 text-sm font-bold text-white shadow-sm transition-colors hover:bg-church-900"
         >
           {Icon.plus('w-4 h-4')}
           <span>محاضرة جديدة</span>
@@ -1463,7 +1496,7 @@ function Lectures({ user, lectures, reload, showToast, onGoToAttendance }) {
         <div className="border-b border-slate-100 px-5 py-4">
           <h2 className="font-bold text-slate-700">
             قائمة المحاضرات
-            <span className="mr-2 rounded-full bg-indigo-100 px-2.5 py-0.5 text-xs font-medium text-indigo-700">
+            <span className="mr-2 rounded-full bg-gold-100 px-2.5 py-0.5 text-xs font-medium text-church-800">
               {lectures.length}
             </span>
           </h2>
@@ -1484,14 +1517,14 @@ function Lectures({ user, lectures, reload, showToast, onGoToAttendance }) {
                   className="flex flex-1 items-center gap-3 text-right"
                   title="انتقل لتسجيل الحضور"
                 >
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-100 text-indigo-600">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gold-100 text-church-800">
                     {Icon.book('w-5 h-5')}
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="font-medium text-slate-800 truncate">{l.title}</p>
                     <p className="text-xs text-slate-400">{l.date}</p>
                   </div>
-                  <span className="flex shrink-0 items-center gap-1 rounded-lg bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-600 hover:bg-blue-100 transition-colors">
+                  <span className="flex shrink-0 items-center gap-1 rounded-lg bg-church-50 px-2.5 py-1 text-xs font-medium text-church-800 hover:bg-gold-100 transition-colors">
                     {Icon.clipboard('w-3.5 h-3.5')}
                     <span>الحضور</span>
                   </span>
@@ -1531,9 +1564,11 @@ function Attendance({ members, reloadMembers, lectures, showToast }) {
   const [loadingAttendance, setLoadingAttendance] = useState(false)
   const [search, setSearch]             = useState('')
   const [loading, setLoading]           = useState(false)
-  const [quickName, setQuickName]       = useState('')
-  const [quickPhone, setQuickPhone]     = useState('')
+  const quickEmptyForm = { name: '', phone: '', address: '', church: '', confession_father: '', birth_date: '', batch: '' }
+  const [quickForm, setQuickForm]         = useState(quickEmptyForm)
+  const [showQuickDetails, setShowQuickDetails] = useState(false)
   const [quickLoading, setQuickLoading] = useState(false)
+  const setQuickField = (k) => (e) => setQuickForm((p) => ({ ...p, [k]: e.target.value }))
 
   // Load existing attendance whenever the selected lecture changes
   useEffect(() => {
@@ -1582,13 +1617,14 @@ function Attendance({ members, reloadMembers, lectures, showToast }) {
     e.preventDefault()
     setQuickLoading(true)
     try {
-      await api.post('/members', { name: quickName, phone: quickPhone || undefined })
-      setQuickName('')
-      setQuickPhone('')
+      const payload = Object.fromEntries(Object.entries(quickForm).filter(([, v]) => v !== ''))
+      await api.post('/members', payload)
+      setQuickForm(quickEmptyForm)
+      setShowQuickDetails(false)
       await reloadMembers()
       showToast('تم إضافة المخدوم ✓')
     } catch {
-      showToast('فشل إضافة المخدوم', 'error')
+      showToast('حدث خطأ، تأكد من الاسم والموبايل', 'error')
     } finally {
       setQuickLoading(false)
     }
@@ -1624,41 +1660,92 @@ function Attendance({ members, reloadMembers, lectures, showToast }) {
 
       {/* ── Quick Add (top) ── */}
       <div className="rounded-2xl bg-white p-4 shadow-sm">
-        <p className="mb-3 text-sm font-bold text-slate-700">⚡ إضافة مخدوم جديد بسرعة</p>
-        <form onSubmit={addQuickMember} className="flex flex-col gap-2 sm:flex-row">
-          <input
-            value={quickName}
-            onChange={(e) => setQuickName(e.target.value)}
-            required
-            className="flex-1 rounded-xl border border-slate-200 p-2.5 text-sm focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
-            placeholder="الاسم"
-          />
-          <input
-            value={quickPhone}
-            onChange={(e) => setQuickPhone(e.target.value)}
-            className="flex-1 rounded-xl border border-slate-200 p-2.5 text-sm focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
-            placeholder="الموبايل (اختياري)"
-          />
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <p className="text-sm font-bold text-slate-700">⚡ إضافة مخدوم جديد بسرعة</p>
           <button
-            type="submit"
-            disabled={quickLoading}
-            className="shrink-0 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-blue-700 disabled:opacity-60"
+            type="button"
+            onClick={() => setShowQuickDetails((v) => !v)}
+            className="text-xs font-bold text-church-800 hover:text-church-900"
           >
-            {quickLoading ? '...' : 'إضافة'}
+            {showQuickDetails ? 'إخفاء البيانات الإضافية' : '+ بيانات إضافية (عنوان، دفعة، …)'}
           </button>
+        </div>
+        <form onSubmit={addQuickMember} className="space-y-3">
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <input
+              value={quickForm.name}
+              onChange={setQuickField('name')}
+              required
+              className="flex-1 rounded-xl border border-slate-200 p-2.5 text-sm focus:border-gold-400 focus:outline-none focus:ring-2 focus:ring-gold-100"
+              placeholder="الاسم *"
+            />
+            <input
+              value={quickForm.phone}
+              onChange={setQuickField('phone')}
+              required
+              className="flex-1 rounded-xl border border-slate-200 p-2.5 text-sm focus:border-gold-400 focus:outline-none focus:ring-2 focus:ring-gold-100"
+              placeholder="الموبايل *"
+              dir="ltr"
+            />
+            <button
+              type="submit"
+              disabled={quickLoading}
+              className="shrink-0 rounded-xl bg-church-800 px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-church-900 disabled:opacity-60"
+            >
+              {quickLoading ? '...' : 'إضافة'}
+            </button>
+          </div>
+
+          {showQuickDetails && (
+            <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
+              <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-slate-400">بيانات إضافية (اختياري)</p>
+              <div className="grid gap-2 sm:grid-cols-2">
+                <input
+                  value={quickForm.batch}
+                  onChange={setQuickField('batch')}
+                  className="rounded-xl border border-slate-200 bg-white p-2.5 text-sm"
+                  placeholder="الدفعة"
+                />
+                <input
+                  type="date"
+                  value={quickForm.birth_date}
+                  onChange={setQuickField('birth_date')}
+                  className="rounded-xl border border-slate-200 bg-white p-2.5 text-sm"
+                />
+                <input
+                  value={quickForm.address}
+                  onChange={setQuickField('address')}
+                  className="rounded-xl border border-slate-200 bg-white p-2.5 text-sm sm:col-span-2"
+                  placeholder="العنوان"
+                />
+                <input
+                  value={quickForm.church}
+                  onChange={setQuickField('church')}
+                  className="rounded-xl border border-slate-200 bg-white p-2.5 text-sm"
+                  placeholder="الكنيسة"
+                />
+                <input
+                  value={quickForm.confession_father}
+                  onChange={setQuickField('confession_father')}
+                  className="rounded-xl border border-slate-200 bg-white p-2.5 text-sm"
+                  placeholder="أب الاعتراف"
+                />
+              </div>
+            </div>
+          )}
         </form>
       </div>
 
       {/* ── Step 1: Lecture ── */}
       <div className="rounded-2xl bg-white p-5 shadow-sm">
         <div className="mb-3 flex items-center gap-2">
-          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-600 text-xs font-bold text-white">١</span>
+          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-church-800 text-xs font-bold text-white">١</span>
           <h3 className="font-bold text-slate-700">اختار المحاضرة</h3>
         </div>
         <select
           value={selectedLectureId}
           onChange={(e) => setSelectedLectureId(e.target.value)}
-          className="w-full rounded-xl border border-slate-200 bg-white p-3 text-sm focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
+          className="w-full rounded-xl border border-slate-200 bg-white p-3 text-sm focus:border-gold-400 focus:outline-none focus:ring-2 focus:ring-gold-100"
         >
           <option value="">— اختار المحاضرة —</option>
           {lectures.map((l) => (
@@ -1670,7 +1757,7 @@ function Attendance({ members, reloadMembers, lectures, showToast }) {
       {/* ── Analysis + Save + Export ── */}
       <div className="overflow-hidden rounded-2xl shadow-sm">
         {/* Gradient header */}
-        <div className="flex items-center justify-between bg-gradient-to-l from-blue-600 to-indigo-700 px-5 py-4">
+        <div className="flex items-center justify-between bg-gradient-to-l from-church-800 to-church-900 px-5 py-4">
           <div className="flex items-center gap-2.5">
             <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-white/15">
               {Icon.clipboard('w-4 h-4 text-white')}
@@ -1696,7 +1783,7 @@ function Attendance({ members, reloadMembers, lectures, showToast }) {
             {[
               { count: presentCount, label: 'حضر',      sub: total > 0 ? `${rate}%` : '—',         from: 'from-emerald-50', border: 'border-emerald-200/70', num: 'text-emerald-700', subc: 'text-emerald-500', dot: 'bg-emerald-500' },
               { count: absentCount,  label: 'غاب',      sub: total > 0 ? `${100 - rate}%` : '—',   from: 'from-red-50',     border: 'border-red-200/70',     num: 'text-red-600',    subc: 'text-red-400',   dot: 'bg-red-500' },
-              { count: total,        label: 'الإجمالي', sub: 'مخدوم',                               from: 'from-blue-50',    border: 'border-blue-200/70',    num: 'text-blue-700',   subc: 'text-blue-400',  dot: 'bg-blue-500' },
+              { count: total,        label: 'الإجمالي', sub: 'مخدوم',                               from: 'from-church-50',    border: 'border-gold-200/70',    num: 'text-church-800',   subc: 'text-gold-600',  dot: 'bg-church-700' },
             ].map(({ count, label, sub, from, border, num, subc, dot }) => (
               <div key={label} className={`flex flex-col items-center rounded-xl border bg-gradient-to-b ${from} to-white ${border} py-4`}>
                 <span className={`mb-2.5 inline-block h-2 w-2 rounded-full ${dot}`} />
@@ -1739,7 +1826,7 @@ function Attendance({ members, reloadMembers, lectures, showToast }) {
             className={`flex w-full items-center justify-center gap-2.5 rounded-xl py-3.5 text-sm font-bold transition-all ${
               isPast
                 ? 'cursor-not-allowed bg-slate-100 text-slate-400'
-                : 'bg-blue-600 text-white shadow-md shadow-blue-200 hover:bg-blue-700 hover:shadow-lg hover:shadow-blue-200 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50'
+                : 'bg-church-800 text-white shadow-md shadow-church-200 hover:bg-church-900 hover:shadow-lg hover:shadow-church-200 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50'
             }`}
           >
             {loading ? (
@@ -1786,7 +1873,7 @@ function Attendance({ members, reloadMembers, lectures, showToast }) {
       <div className="overflow-hidden rounded-2xl bg-white shadow-sm">
         <div className="border-b border-slate-100 px-5 py-4">
           <div className="mb-3 flex items-center gap-2">
-            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-600 text-xs font-bold text-white">٢</span>
+            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-church-800 text-xs font-bold text-white">٢</span>
             <h3 className="font-bold text-slate-700">تسجيل الحضور</h3>
           </div>
           <div className="relative">
@@ -1796,7 +1883,7 @@ function Attendance({ members, reloadMembers, lectures, showToast }) {
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full rounded-xl border border-slate-200 py-2.5 pr-9 pl-4 text-sm focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
+              className="w-full rounded-xl border border-slate-200 py-2.5 pr-9 pl-4 text-sm focus:border-gold-400 focus:outline-none focus:ring-2 focus:ring-gold-100"
               placeholder="بحث بالاسم أو الموبايل..."
             />
           </div>
@@ -1918,13 +2005,13 @@ function Birthdays({ showToast }) {
 
   return (
     <div className="space-y-4 pb-10">
-      <div className="rounded-2xl bg-gradient-to-l from-pink-500 to-rose-600 p-5 text-white shadow-lg">
+      <div className="card-hero">
         <div className="flex items-center gap-3">
-          {Icon.calendar('w-8 h-8 opacity-90')}
+          {Icon.calendar('w-8 h-8 text-gold-300')}
           <div>
             <h1 className="text-xl font-bold">أعياد الميلاد</h1>
-            <p className="mt-0.5 text-sm text-pink-100">
-              {isCurrentMonth ? `ميلادات شهر ${monthLabel}` : `من ${appliedFrom} إلى ${appliedTo}`}
+            <p className="mt-0.5 text-sm text-gold-100">
+              {isCurrentMonth ? `أعياد شهر ${monthLabel}` : `من ${appliedFrom} إلى ${appliedTo}`}
             </p>
           </div>
         </div>
@@ -1944,7 +2031,7 @@ function Birthdays({ showToast }) {
           </div>
         </div>
         <div className="mt-3 flex flex-wrap gap-2">
-          <button type="button" onClick={applyFilter} className="rounded-xl bg-rose-600 px-4 py-2 text-sm font-bold text-white hover:bg-rose-700">
+          <button type="button" onClick={applyFilter} className="rounded-xl bg-church-800 px-4 py-2 text-sm font-bold text-white hover:bg-church-900">
             تطبيق
           </button>
           <button type="button" onClick={resetToCurrentMonth} className="rounded-xl bg-slate-100 px-4 py-2 text-sm font-bold text-slate-600 hover:bg-slate-200">
@@ -1965,8 +2052,8 @@ function Birthdays({ showToast }) {
 
       <div className="overflow-hidden rounded-2xl bg-white shadow-sm">
         <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
-          <h2 className="font-bold text-slate-700">قائمة الميلادات</h2>
-          <span className="rounded-full bg-rose-100 px-2.5 py-0.5 text-xs font-medium text-rose-700">{count}</span>
+          <h2 className="font-bold text-slate-700">قائمة أعياد الميلاد</h2>
+          <span className="rounded-full bg-gold-100 px-2.5 py-0.5 text-xs font-medium text-church-800">{count}</span>
         </div>
         {loading ? (
           <p className="py-16 text-center text-sm text-slate-400">جاري التحميل...</p>
@@ -1984,9 +2071,9 @@ function Birthdays({ showToast }) {
                   key={m.id}
                   type="button"
                   onClick={() => navigate(`/members/${m.id}`)}
-                  className="flex w-full items-center gap-4 px-5 py-4 text-right transition-colors hover:bg-rose-50/50"
+                  className="flex w-full items-center gap-4 px-5 py-4 text-right transition-colors hover:bg-church-50"
                 >
-                  <div className="flex h-12 w-12 shrink-0 flex-col items-center justify-center rounded-xl bg-gradient-to-br from-pink-100 to-rose-100 text-rose-700">
+                  <div className="flex h-12 w-12 shrink-0 flex-col items-center justify-center rounded-xl bg-gradient-to-br from-gold-100 to-church-50 text-church-800 ring-1 ring-gold-200">
                     <span className="text-lg font-bold leading-none">{new Date(m.birth_date).getDate()}</span>
                     <span className="text-[10px] font-medium leading-tight">
                       {new Date(m.birth_date).toLocaleDateString('ar-EG', { month: 'short' })}
@@ -1995,7 +2082,7 @@ function Birthdays({ showToast }) {
                   <div className="min-w-0 flex-1">
                     <p className="font-medium text-slate-800">{m.name}</p>
                     <p className="text-xs text-slate-500">{m.phone}{m.batch ? ` · ${m.batch}` : ''}</p>
-                    <p className="mt-0.5 text-xs text-rose-600">{formatBirthdayDay(m.birth_date)}{age != null ? ` · يبلغ ${age} سنة` : ''}</p>
+                    <p className="mt-0.5 text-xs text-church-700">{formatBirthdayDay(m.birth_date)}{age != null ? ` · يبلغ ${age} سنة` : ''}</p>
                   </div>
                   {Icon.arrowLeft('w-4 h-4 shrink-0 text-slate-300 rotate-180')}
                 </button>
@@ -2082,7 +2169,7 @@ function Trips({ trips, reload, showToast }) {
       <div className="flex justify-end">
         <button
           onClick={openAdd}
-          className="flex items-center gap-2 rounded-xl bg-teal-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-teal-700"
+          className="flex items-center gap-2 rounded-xl bg-church-800 px-4 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-church-900"
         >
           {Icon.plus('w-4 h-4')}
           <span>رحلة جديدة</span>
@@ -2130,7 +2217,7 @@ function Trips({ trips, reload, showToast }) {
             </div>
             <div className="flex gap-2 pt-1">
               <button type="button" onClick={() => { setShowAddModal(false); setEditingTrip(null) }} className="flex-1 rounded-xl border border-slate-200 py-3 text-sm font-bold text-slate-600">إلغاء</button>
-              <button type="submit" disabled={loading} className="flex-1 rounded-xl bg-teal-600 py-3 text-sm font-bold text-white disabled:opacity-60">{loading ? '...' : 'حفظ'}</button>
+              <button type="submit" disabled={loading} className="flex-1 rounded-xl bg-church-800 py-3 text-sm font-bold text-white disabled:opacity-60">{loading ? '...' : 'حفظ'}</button>
             </div>
           </form>
         </Modal>
@@ -2150,7 +2237,7 @@ function Trips({ trips, reload, showToast }) {
         <div className="border-b border-slate-100 px-5 py-4">
           <h2 className="font-bold text-slate-700">
             الرحلات
-            <span className="mr-2 rounded-full bg-teal-100 px-2.5 py-0.5 text-xs font-medium text-teal-700">{trips.length}</span>
+            <span className="mr-2 rounded-full bg-gold-100 px-2.5 py-0.5 text-xs font-medium text-teal-700">{trips.length}</span>
           </h2>
         </div>
         {trips.length === 0 ? (
@@ -2163,7 +2250,7 @@ function Trips({ trips, reload, showToast }) {
             {trips.map((t) => (
               <div key={t.id} className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-start gap-3">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-teal-100 text-teal-600">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gold-100 text-church-800">
                     {Icon.trip('w-5 h-5')}
                   </div>
                   <div>
@@ -2176,7 +2263,8 @@ function Trips({ trips, reload, showToast }) {
                   </div>
                 </div>
                 <div className="flex gap-2">
-                  <button onClick={() => navigate(`/trips/${t.id}/reservations`)} className="rounded-lg bg-teal-600 px-3 py-2 text-xs font-bold text-white hover:bg-teal-700">الحجوزات</button>
+                  <button onClick={() => navigate(`/trips/${t.id}/day-attendance`)} className="rounded-lg bg-gold-600 px-3 py-2 text-xs font-bold text-white hover:bg-gold-500">حضور اليوم</button>
+                  <button onClick={() => navigate(`/trips/${t.id}/reservations`)} className="rounded-lg bg-church-800 px-3 py-2 text-xs font-bold text-white hover:bg-church-900">الحجوزات</button>
                   <button onClick={() => openEdit(t)} className="rounded-lg bg-slate-100 px-3 py-2 text-xs font-bold text-slate-600 hover:bg-slate-200">{Icon.pencil('w-4 h-4 inline')}</button>
                   <button onClick={() => setDeletingId(t.id)} className="rounded-lg bg-red-50 px-3 py-2 text-xs font-bold text-red-600 hover:bg-red-100">{Icon.trash('w-4 h-4 inline')}</button>
                 </div>
@@ -2331,6 +2419,7 @@ function Servants({ servants, reload, showToast }) {
 
 // ─── Login ────────────────────────────────────────────────────────────────────
 function Login({ onLoggedIn }) {
+  const { branding } = useBranding()
   const [email, setEmail]     = useState('admin@church.test')
   const [password, setPassword] = useState('password')
   const [loading, setLoading] = useState(false)
@@ -2355,17 +2444,17 @@ function Login({ onLoggedIn }) {
 
   return (
     <div
-      className="flex min-h-screen items-center justify-center bg-gradient-to-br from-blue-800 to-indigo-900 px-4"
+      className="flex min-h-screen items-center justify-center bg-gradient-to-br from-church-950 to-church-900 px-4"
       style={{ fontFamily: 'Tajawal, sans-serif' }}
     >
       <div className="w-full max-w-md">
         {/* Brand */}
         <div className="mb-8 text-center">
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-white/20 shadow-lg">
-            {Icon.shield('w-9 h-9 text-white')}
-          </div>
-          <h1 className="text-2xl font-bold text-white">اجتماع ماريوحنا للخريجين</h1>
-          <p className="mt-1 text-sm text-blue-200">سجّل دخولك للمتابعة</p>
+          <BrandLogo className="mx-auto mb-4 h-28 w-28 rounded-full bg-white p-1 shadow-2xl ring-4 ring-gold-400/40" />
+          <h1 className="text-xl font-bold leading-relaxed text-white">{branding.app_name}</h1>
+          <p className="mt-1 text-sm text-gold-200">
+            {branding.app_subtitle ? `${branding.app_subtitle} — ` : ''}سجّل دخولك للمتابعة
+          </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4 rounded-2xl bg-white p-8 shadow-2xl">
@@ -2381,7 +2470,7 @@ function Login({ onLoggedIn }) {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full rounded-xl border border-slate-200 p-3 text-sm transition focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
+              className="w-full rounded-xl border border-slate-200 p-3 text-sm transition focus:border-gold-400 focus:outline-none focus:ring-2 focus:ring-gold-100"
               required
             />
           </div>
@@ -2392,7 +2481,7 @@ function Login({ onLoggedIn }) {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full rounded-xl border border-slate-200 p-3 text-sm transition focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
+              className="w-full rounded-xl border border-slate-200 p-3 text-sm transition focus:border-gold-400 focus:outline-none focus:ring-2 focus:ring-gold-100"
               required
             />
           </div>
@@ -2400,16 +2489,16 @@ function Login({ onLoggedIn }) {
           <button
             type="submit"
             disabled={loading}
-            className="w-full rounded-xl bg-blue-600 p-3.5 font-bold text-white transition-colors hover:bg-blue-700 disabled:opacity-60"
+            className="w-full rounded-xl bg-church-800 p-3.5 font-bold text-white transition-colors hover:bg-church-900 disabled:opacity-60"
           >
             {loading ? 'جاري الدخول...' : 'تسجيل الدخول'}
           </button>
         </form>
 
-        <div className="mt-4 rounded-2xl bg-white/10 p-4 text-xs text-blue-100">
+        <div className="mt-4 rounded-2xl bg-white/10 p-4 text-xs text-gold-100">
           <p className="mb-2 font-bold text-white">حسابات تجريبية</p>
-          <p><span className="text-blue-200">مسؤول:</span> admin@church.test / password</p>
-          <p className="mt-1"><span className="text-blue-200">خادم:</span> mina@church.test / password</p>
+          <p><span className="text-gold-200">مسؤول:</span> admin@church.test / password</p>
+          <p className="mt-1"><span className="text-gold-200">خادم:</span> mina@church.test / password</p>
         </div>
       </div>
     </div>

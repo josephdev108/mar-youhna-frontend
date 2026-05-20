@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import api from './api'
+import MemberLocationActions from './MemberLocationActions'
 import MemberProfileModal from './MemberProfileModal'
+import { hasMemberLocation, openMemberInMaps } from './memberLocation'
 
 export default function VisitationSessionDetail({ showToast, Modal, Icon }) {
   const { id } = useParams()
@@ -71,6 +73,21 @@ export default function VisitationSessionDetail({ showToast, Modal, Icon }) {
     setSelected(null)
     setStep('choose')
     setNotes('')
+  }
+
+  const applyMemberLocationUpdate = (updated) => {
+    const patch = {
+      location_lat: updated.location_lat,
+      location_lng: updated.location_lng,
+    }
+    setData((prev) => {
+      if (!prev) return prev
+      return {
+        ...prev,
+        members: prev.members.map((m) => (m.id === updated.id ? { ...m, ...patch } : m)),
+      }
+    })
+    setSelected((prev) => (prev?.id === updated.id ? { ...prev, ...patch } : prev))
   }
 
   const saveRecord = async (status, recordNotes = null) => {
@@ -209,10 +226,30 @@ export default function VisitationSessionDetail({ showToast, Modal, Icon }) {
                   type="button"
                   onClick={() => setProfileMemberId(m.id)}
                   title="الملف الشخصي"
-                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-blue-50 hover:text-blue-600"
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-church-50 hover:text-church-800"
                 >
                   {Icon.eye('w-4 h-4')}
                 </button>
+                {hasMemberLocation(m) ? (
+                  <button
+                    type="button"
+                    title="فتح الموقع على الخريطة"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      openMemberInMaps(m)
+                    }}
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-violet-50 text-violet-700 hover:bg-violet-100"
+                  >
+                    📍
+                  </button>
+                ) : (
+                  <span
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-amber-50 text-xs text-amber-700"
+                    title="لا يوجد موقع مسجّل — افتح المخدوم لتسجيله"
+                  >
+                    📌
+                  </span>
+                )}
                 <button
                   type="button"
                   onClick={() => openMember(m)}
@@ -229,7 +266,7 @@ export default function VisitationSessionDetail({ showToast, Modal, Icon }) {
                       <a
                         href={`tel:${m.phone}`}
                         onClick={(e) => e.stopPropagation()}
-                        className="font-mono font-medium text-blue-600 hover:underline"
+                        className="font-mono font-medium text-church-800 hover:underline"
                         dir="ltr"
                       >
                         {m.phone}
@@ -268,6 +305,7 @@ export default function VisitationSessionDetail({ showToast, Modal, Icon }) {
           onClose={() => setProfileMemberId(null)}
           Modal={Modal}
           Icon={Icon}
+          showToast={showToast}
         />
       )}
 
@@ -278,7 +316,7 @@ export default function VisitationSessionDetail({ showToast, Modal, Icon }) {
               {selected.phone && (
                 <p className="flex items-center gap-2">
                   <span className="text-xs font-bold text-slate-400">موبايل</span>
-                  <a href={`tel:${selected.phone}`} className="font-mono font-medium text-blue-600" dir="ltr">
+                  <a href={`tel:${selected.phone}`} className="font-mono font-medium text-church-800" dir="ltr">
                     {selected.phone}
                   </a>
                 </p>
@@ -291,6 +329,21 @@ export default function VisitationSessionDetail({ showToast, Modal, Icon }) {
               )}
             </div>
           )}
+
+          <div className="mb-4">
+            <p className="mb-2 text-xs font-bold text-slate-500">موقع المخدوم</p>
+            <MemberLocationActions
+              member={selected}
+              showToast={showToast}
+              onUpdated={applyMemberLocationUpdate}
+            />
+            {!hasMemberLocation(selected) && (
+              <p className="mt-2 text-xs text-amber-800">
+                قف عند بيت المخدوم واضغط الزر لتسجيل إحداثيات GPS (lat/lng).
+              </p>
+            )}
+          </div>
+
           {step === 'choose' && (
             <div className="space-y-3">
               <p className="text-sm text-slate-600">اختر حالة الافتقاد لهذا المخدوم:</p>
