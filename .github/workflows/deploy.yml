@@ -11,50 +11,52 @@ concurrency:
 
 jobs:
   deploy:
-    name: Build and deploy
+    name: Build and deploy on server
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
-
-      - name: Install and build
-        run: |
-          npm ci
-          npm run build
-
-      - name: Pack build output
-        run: tar -czf release.tar.gz -C dist .
-
-      - name: Upload release archive
-        uses: appleboy/scp-action@v1.0.0
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          port: ${{ secrets.SSH_PORT }}
-          source: release.tar.gz
-          target: /tmp/marjohn-deploy
-
-      - name: Deploy to server
+      - name: Deploy via SSH (build on server)
         uses: appleboy/ssh-action@v1.2.2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: ${{ secrets.SSH_PORT }}
+          timeout: 120s
+          command_timeout: 20m
+          envs: GITHUB_TOKEN
           script_stop: true
           script: |
             set -e
+
+            REPO_DIR=/home/u918418209/domains/stmaryabram.com/mar-youhna-frontend-src
             DEPLOY_DIR=/home/u918418209/domains/stmaryabram.com/public_html/marjohn
-            ARCHIVE=/tmp/marjohn-deploy/release.tar.gz
+            REPO_URL="https://x-access-token:${GITHUB_TOKEN}@github.com/josephdev108/mar-youhna-frontend.git"
+
+            export NVM_DIR="$HOME/.nvm"
+            [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
+
+            if ! command -v npm >/dev/null 2>&1; then
+              echo "ERROR: npm not found on server. Install Node.js (nvm) via SSH, then re-run deploy."
+              exit 1
+            fi
+
+            if [ ! -d "$REPO_DIR/.git" ]; then
+              git clone --depth 1 -b main "$REPO_URL" "$REPO_DIR"
+            else
+              cd "$REPO_DIR"
+              git remote set-url origin "$REPO_URL"
+              git fetch origin main --depth 1
+              git reset --hard origin/main
+            fi
+
+            cd "$REPO_DIR"
+            npm ci
+            npm run build
 
             rm -rf "$DEPLOY_DIR"
             mkdir -p "$DEPLOY_DIR"
-            tar -xzf "$ARCHIVE" -C "$DEPLOY_DIR"
-            rm -rf /tmp/marjohn-deploy
+            cp -a dist/. "$DEPLOY_DIR/"
+
+            echo "Deployed $(git rev-parse --short HEAD) to $DEPLOY_DIR"
