@@ -11,52 +11,46 @@ concurrency:
 
 jobs:
   deploy:
-    name: Build and deploy on server
+    name: Build and deploy
     runs-on: ubuntu-latest
     steps:
-      - name: Deploy via SSH (build on server)
-        uses: appleboy/ssh-action@v1.2.2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
         with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          port: ${{ secrets.SSH_PORT }}
-          timeout: 120s
-          command_timeout: 20m
-          envs: GITHUB_TOKEN
-          script_stop: true
-          script: |
-            set -e
+          node-version: 20
+          cache: npm
 
-            REPO_DIR=/home/u918418209/domains/stmaryabram.com/mar-youhna-frontend-src
-            DEPLOY_DIR=/home/u918418209/domains/stmaryabram.com/public_html/marjohn
-            REPO_URL="https://x-access-token:${GITHUB_TOKEN}@github.com/josephdev108/mar-youhna-frontend.git"
+      - name: Install and build
+        run: |
+          npm ci
+          npm run build
 
-            export NVM_DIR="$HOME/.nvm"
-            [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
+      - name: Setup SSH agent
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
-            if ! command -v npm >/dev/null 2>&1; then
-              echo "ERROR: npm not found on server. Install Node.js (nvm) via SSH, then re-run deploy."
-              exit 1
-            fi
+      - name: Upload dist to server
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_PORT: ${{ secrets.SSH_PORT }}
+          DEPLOY_DIR: /home/u918418209/domains/stmaryabram.com/public_html/marjohn
+        run: |
+          set -euo pipefail
 
-            if [ ! -d "$REPO_DIR/.git" ]; then
-              git clone --depth 1 -b main "$REPO_URL" "$REPO_DIR"
-            else
-              cd "$REPO_DIR"
-              git remote set-url origin "$REPO_URL"
-              git fetch origin main --depth 1
-              git reset --hard origin/main
-            fi
+          mkdir -p ~/.ssh
+          ssh-keyscan -p "$SSH_PORT" -H "$SSH_HOST" >> ~/.ssh/known_hosts 2>/dev/null || true
 
-            cd "$REPO_DIR"
-            npm ci
-            npm run build
+          SSH_OPTS=(-p "$SSH_PORT" -o ConnectTimeout=120 -o ServerAliveInterval=15 -o ServerAliveCountMax=4)
+          TARGET="${SSH_USER}@${SSH_HOST}"
 
-            rm -rf "$DEPLOY_DIR"
-            mkdir -p "$DEPLOY_DIR"
-            cp -a dist/. "$DEPLOY_DIR/"
+          ssh "${SSH_OPTS[@]}" "$TARGET" "rm -rf '${DEPLOY_DIR}' && mkdir -p '${DEPLOY_DIR}'"
 
-            echo "Deployed $(git rev-parse --short HEAD) to $DEPLOY_DIR"
+          tar -czf - -C dist . | ssh "${SSH_OPTS[@]}" "$TARGET" "tar -xzf - -C '${DEPLOY_DIR}'"
+
+          ssh "${SSH_OPTS[@]}" "$TARGET" "ls -la '${DEPLOY_DIR}' | head -20"
+          echo "Deployed to ${DEPLOY_DIR}"

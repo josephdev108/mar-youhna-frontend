@@ -1,0 +1,44 @@
+# Use this workflow if SSH deploy times out from GitHub Actions.
+# Disable deploy.yml or remove its push trigger, then enable push here.
+# Secrets: FTP_SERVER, FTP_USERNAME, FTP_PASSWORD (from hPanel → FTP Accounts)
+
+name: Deploy frontend to production (FTP)
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: production-frontend-deploy-ftp
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Build and deploy via FTP
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install and build
+        run: |
+          npm ci
+          npm run build
+
+      - name: Deploy dist via FTPS
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.6
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          port: 21
+          protocol: ftps
+          local-dir: dist/
+          server-dir: domains/stmaryabram.com/public_html/marjohn/
+          dangerous-clean-slate: true
+          log-level: minimal
