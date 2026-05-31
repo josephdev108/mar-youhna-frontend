@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Navigate, Route, Routes, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import api from './api'
+import api, { fetchAllPaginated } from './api'
 import TripReservations from './TripReservations'
 import TripDayAttendance from './TripDayAttendance'
 import VisitationSessions from './VisitationSessions'
@@ -235,8 +235,7 @@ export default function App() {
   }, [])
 
   const loadMembers  = useCallback(async (params = {}) => {
-    const query = new URLSearchParams({ per_page: 100, ...params }).toString()
-    setMembers((await api.get(`/members?${query}`)).data.data)
+    setMembers(await fetchAllPaginated('/members', params))
   }, [])
   const loadLectures = useCallback(async () => setLectures((await api.get('/lectures?per_page=100')).data.data), [])
   const loadTrips    = useCallback(async () => setTrips((await api.get('/trips?per_page=100')).data.data), [])
@@ -517,6 +516,7 @@ function Members({ members, reload, showToast }) {
   const [headers, setHeaders]       = useState([])
   const [mapping, setMapping]       = useState({ name: '', phone: '', batch: '', church: '', address: '', confession_father: '', birth_date: '' })
   const [showImport, setShowImport] = useState(false)
+  const [importResult, setImportResult] = useState(null)
 
   const filtered = useMemo(() => {
     return members.filter((m) => {
@@ -642,15 +642,28 @@ function Members({ members, reload, showToast }) {
 
   const submitImport = async () => {
     if (!importFile) return
-    const fd = new FormData()
-    fd.append('file', importFile)
-    fd.append('mapping[name]', mapping.name)
-    fd.append('mapping[phone]', mapping.phone)
-    const optionals = ['batch', 'church', 'address', 'confession_father', 'birth_date']
-    optionals.forEach((k) => { if (mapping[k]) fd.append(`mapping[${k}]`, mapping[k]) })
-    const { data } = await api.post('/import/members', fd)
-    showToast(`تم الاستيراد: ${data.imported} — تم التخطي: ${data.skipped}`)
-    await reload()
+    setLoading(true)
+    setImportResult(null)
+    try {
+      const fd = new FormData()
+      fd.append('file', importFile)
+      fd.append('mapping[name]', mapping.name)
+      if (mapping.phone) fd.append('mapping[phone]', mapping.phone)
+      const optionals = ['batch', 'church', 'address', 'confession_father', 'birth_date']
+      optionals.forEach((k) => { if (mapping[k]) fd.append(`mapping[${k}]`, mapping[k]) })
+      const { data } = await api.post('/import/members', fd)
+      setImportResult({
+        imported: data.imported ?? 0,
+        skipped: data.skipped ?? 0,
+        skipped_rows: data.skipped_rows ?? [],
+      })
+      showToast(`تم الاستيراد: ${data.imported} — تم التخطي: ${data.skipped}`)
+      await reload()
+    } catch {
+      showToast('فشل الاستيراد', 'error')
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -926,7 +939,7 @@ function Members({ members, reload, showToast }) {
                   </select>
                 </div>
                 <div>
-                  <label className="mb-1 block text-xs font-medium text-slate-500">عمود الموبايل <span className="text-slate-400 text-xs">(اختياري)</span></label>
+                  <label className="mb-1 block text-xs font-medium text-slate-500">عمود الموبايل <span className="text-slate-400 text-xs">(اختياري — يمكن ترك الصف بدون رقم)</span></label>
                   <select value={mapping.phone} onChange={(e) => setMapping((p) => ({ ...p, phone: e.target.value }))} className="w-full rounded-xl border border-slate-200 p-2.5 text-sm">
                     <option value="">اختار العمود</option>
                     {headers.map((h) => <option key={h} value={h}>{h}</option>)}
@@ -956,15 +969,50 @@ function Members({ members, reload, showToast }) {
                 <div className="sm:col-span-2">
                   <button
                     onClick={submitImport}
-                    disabled={!mapping.name || !mapping.phone}
+                    disabled={!mapping.name || loading}
                     className="w-full rounded-xl bg-emerald-600 p-2.5 text-sm font-bold text-white disabled:opacity-40"
                   >
-                    استيراد الآن
+                    {loading ? 'جاري الاستيراد...' : 'استيراد الآن'}
                   </button>
                 </div>
               </>
             )}
           </div>
+
+          {importResult && (
+            <div className="mt-4 border-t border-slate-100 pt-4">
+              <p className="text-sm font-bold text-slate-700">
+                نتيجة الاستيراد: <span className="text-emerald-700">{importResult.imported} تمت إضافتهم</span>
+                {importResult.skipped > 0 && (
+                  <span className="text-amber-700"> — {importResult.skipped} تم تخطيهم</span>
+                )}
+              </p>
+              {importResult.skipped_rows?.length > 0 && (
+                <div className="mt-3 max-h-64 overflow-auto rounded-xl border border-amber-100 bg-amber-50/50">
+                  <table className="w-full text-right text-xs">
+                    <thead className="sticky top-0 bg-amber-100/90 text-slate-600">
+                      <tr>
+                        <th className="px-3 py-2 font-bold">صف Excel</th>
+                        <th className="px-3 py-2 font-bold">الاسم</th>
+                        <th className="px-3 py-2 font-bold">الموبايل</th>
+                        <th className="px-3 py-2 font-bold">السبب</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-amber-100">
+                      {importResult.skipped_rows.map((row, i) => (
+                        <tr key={`${row.row}-${i}`} className="text-slate-700">
+                          <td className="px-3 py-2 font-mono">{row.row}</td>
+                          <td className="px-3 py-2">{row.name ?? '—'}</td>
+                          <td className="px-3 py-2 font-mono" dir="ltr">{row.phone ?? '—'}</td>
+                          <td className="px-3 py-2 text-amber-900">{row.reason}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 
@@ -974,7 +1022,7 @@ function Members({ members, reload, showToast }) {
           <h2 className="font-bold text-slate-700">
             قائمة المخدومين
             <span className="mr-2 rounded-full bg-gold-100 px-2.5 py-0.5 text-xs font-medium text-church-800">
-              {filtered.length}
+              {search || hasFilters ? `${filtered.length} من ${members.length}` : members.length}
             </span>
           </h2>
           <div className="flex items-center gap-3">

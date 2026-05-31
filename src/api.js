@@ -12,4 +12,18 @@ api.interceptors.request.use((config) => {
   return config
 })
 
+/** Fetch every page from a paginated Laravel API resource. */
+export async function fetchAllPaginated(path, params = {}, perPage = 250) {
+  const all = []
+  let page = 1
+  let lastPage = 1
+  do {
+    const { data } = await api.get(path, { params: { per_page: perPage, page, ...params } })
+    all.push(...(data.data ?? []))
+    lastPage = data.meta?.last_page ?? 1
+    page += 1
+  } while (page <= lastPage)
+  return all
+}
+
 export default api
