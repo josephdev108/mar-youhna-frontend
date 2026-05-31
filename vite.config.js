@@ -2,10 +2,11 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
 // https://vitejs.dev/config/
-export default defineConfig(({ mode }) => ({
+// marjohn.stmaryabram.com document root is already public_html/marjohn — use base /
+export default defineConfig({
   plugins: [react()],
-  base: mode === 'production' ? '/marjohn/' : '/',
+  base: '/',
   server: {
     port: 5173,
   },
-}))
+})

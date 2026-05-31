@@ -1,7 +1,7 @@
 Options -MultiViews
 <IfModule mod_rewrite.c>
   RewriteEngine On
-  RewriteBase /marjohn/
+  RewriteBase /
 
   RewriteRule ^index\.html$ - [L]
   RewriteCond %{REQUEST_FILENAME} !-f
