@@ -1,0 +1,60 @@
+name: Deploy frontend to production
+
+on:
+  push:
+    branches:
+      - main
+
+concurrency:
+  group: production-frontend-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Build and deploy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install and build
+        run: |
+          npm ci
+          npm run build
+
+      - name: Pack build output
+        run: tar -czf release.tar.gz -C dist .
+
+      - name: Upload release archive
+        uses: appleboy/scp-action@v1.0.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SSH_PORT }}
+          source: release.tar.gz
+          target: /tmp/marjohn-deploy
+
+      - name: Deploy to server
+        uses: appleboy/ssh-action@v1.2.2
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SSH_PORT }}
+          script_stop: true
+          script: |
+            set -e
+            DEPLOY_DIR=/home/u918418209/domains/stmaryabram.com/public_html/marjohn
+            ARCHIVE=/tmp/marjohn-deploy/release.tar.gz
+
+            rm -rf "$DEPLOY_DIR"
+            mkdir -p "$DEPLOY_DIR"
+            tar -xzf "$ARCHIVE" -C "$DEPLOY_DIR"
+            rm -rf /tmp/marjohn-deploy

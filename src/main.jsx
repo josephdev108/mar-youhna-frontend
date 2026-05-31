@@ -5,9 +5,11 @@ import App from './App.jsx'
 import { BrandingProvider } from './BrandingContext.jsx'
 import './index.css'
 
+const routerBasename = import.meta.env.BASE_URL.replace(/\/$/, '') || undefined
+
 createRoot(document.getElementById('root')).render(
   <StrictMode>
-    <BrowserRouter>
+    <BrowserRouter basename={routerBasename}>
       <BrandingProvider>
         <App />
       </BrandingProvider>
