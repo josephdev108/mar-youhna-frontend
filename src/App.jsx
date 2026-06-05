@@ -494,6 +494,28 @@ function StatCard({ icon, label, value, color }) {
 // ─── Members ──────────────────────────────────────────────────────────────────
 const MEMBERS_PAGE_SIZE = 15
 
+const IMPORT_COLUMN_HINTS = {
+  name: ['الاسم', 'اسم', 'name', 'الاسم الكامل'],
+  phone: ['الموبايل', 'موبايل', 'الهاتف', 'phone', 'mobile', 'تليفون'],
+  batch: ['الدفعة', 'دفعة', 'batch'],
+  church: ['الكنيسة', 'كنيسة', 'church'],
+  address: ['العنوان', 'عنوان', 'address'],
+  confession_father: ['أب الاعتراف', 'اب الاعتراف', 'confession'],
+  birth_date: ['تاريخ الميلاد', 'الميلاد', 'birth', 'birth_date', 'birthdate'],
+}
+
+function guessImportMapping(headers) {
+  const mapping = { name: '', phone: '', batch: '', church: '', address: '', confession_father: '', birth_date: '' }
+  const normalized = headers.map((h) => ({ raw: h, key: String(h).trim().toLowerCase() }))
+
+  Object.entries(IMPORT_COLUMN_HINTS).forEach(([field, hints]) => {
+    const match = normalized.find(({ key }) => hints.some((hint) => key === hint.toLowerCase() || key.includes(hint.toLowerCase())))
+    if (match) mapping[field] = match.raw
+  })
+
+  return mapping
+}
+
 function Members({ members, reload, showToast }) {
   const navigate = useNavigate()
   const emptyForm = { name: '', phone: '', address: '', church: '', confession_father: '', birth_date: '', batch: '' }
@@ -637,7 +659,9 @@ function Members({ members, reload, showToast }) {
     const fd = new FormData()
     fd.append('file', importFile)
     const { data } = await api.post('/import/members/preview', fd)
-    setHeaders(data.headers ?? [])
+    const nextHeaders = data.headers ?? []
+    setHeaders(nextHeaders)
+    setMapping(guessImportMapping(nextHeaders))
   }
 
   const submitImport = async () => {
