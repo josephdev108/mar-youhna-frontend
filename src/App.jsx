@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Navigate, Route, Routes, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import api, { fetchAllPaginated } from './api'
 import { matchesMemberSearch } from './arabicSearch'
+import VoiceSearchButton from './VoiceSearchButton'
 import TripReservations from './TripReservations'
 import TripDayAttendance from './TripDayAttendance'
 import VisitationSessions from './VisitationSessions'
@@ -822,6 +823,11 @@ function Members({ members, reload, showToast }) {
               placeholder="بحث بالاسم أو الموبايل..."
             />
           </div>
+          <VoiceSearchButton
+            onStart={() => showToast('تحدث الآن... قل اسم المخدوم', 'info')}
+            onResult={(text) => setSearch(text)}
+            onError={(msg) => showToast(msg, 'error')}
+          />
           <button
             onClick={openAdd}
             className="flex shrink-0 items-center gap-2 rounded-xl bg-church-800 px-4 py-2.5 text-sm font-bold text-white shadow-sm transition-colors hover:bg-church-900"
@@ -1949,15 +1955,22 @@ function Attendance({ members, reloadMembers, lectures, showToast }) {
             <span className="flex h-6 w-6 items-center justify-center rounded-full bg-church-800 text-xs font-bold text-white">٢</span>
             <h3 className="font-bold text-slate-700">تسجيل الحضور</h3>
           </div>
-          <div className="relative">
-            <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center">
-              {Icon.search('w-4 h-4 text-slate-400')}
+          <div className="flex gap-2">
+            <div className="relative min-w-0 flex-1">
+              <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center">
+                {Icon.search('w-4 h-4 text-slate-400')}
+              </div>
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full rounded-xl border border-slate-200 py-2.5 pr-9 pl-4 text-sm focus:border-gold-400 focus:outline-none focus:ring-2 focus:ring-gold-100"
+                placeholder="بحث بالاسم أو الموبايل..."
+              />
             </div>
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full rounded-xl border border-slate-200 py-2.5 pr-9 pl-4 text-sm focus:border-gold-400 focus:outline-none focus:ring-2 focus:ring-gold-100"
-              placeholder="بحث بالاسم أو الموبايل..."
+            <VoiceSearchButton
+              onStart={() => showToast('تحدث الآن... قل اسم المخدوم', 'info')}
+              onResult={(text) => setSearch(text)}
+              onError={(msg) => showToast(msg, 'error')}
             />
           </div>
         </div>
