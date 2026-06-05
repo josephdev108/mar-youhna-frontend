@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import api from './api'
+import { matchesMemberSearch } from './arabicSearch'
 import TripFinancePanel from './TripFinancePanel'
 import TripPaymentCollectModal from './TripPaymentCollectModal'
 import TripServantsTab from './TripServantsTab'
@@ -64,8 +65,7 @@ export default function TripReservations({ showToast, Modal, Icon }) {
 
   const filtered = useMemo(() => {
     return members.filter((m) => {
-      const q = search.trim()
-      const matchesSearch = !q || m.name.includes(q) || (m.phone ?? '').includes(q) || (m.batch ?? '').includes(q)
+      const matchesSearch = matchesMemberSearch(m, search)
       if (!matchesSearch) return false
       if (filter === 'eligible') return m.eligible
       if (filter === 'ineligible') return !m.eligible

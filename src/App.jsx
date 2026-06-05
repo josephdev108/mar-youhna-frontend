@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Navigate, Route, Routes, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import api, { fetchAllPaginated } from './api'
+import { matchesMemberSearch } from './arabicSearch'
 import TripReservations from './TripReservations'
 import TripDayAttendance from './TripDayAttendance'
 import VisitationSessions from './VisitationSessions'
@@ -542,7 +543,7 @@ function Members({ members, reload, showToast }) {
 
   const filtered = useMemo(() => {
     return members.filter((m) => {
-      const matchSearch   = !search || m.name.includes(search) || (m.phone ?? '').includes(search)
+      const matchSearch   = matchesMemberSearch(m, search)
       const matchBatch    = !batchFilter || (m.batch ?? '').includes(batchFilter)
       const matchAbsence  = !absenceFilter || (m.absence_count ?? 0) >= Number(absenceFilter)
       const bd            = m.birth_date ?? ''
@@ -1658,7 +1659,7 @@ function Attendance({ members, reloadMembers, lectures, showToast }) {
   }, [selectedLectureId])
 
   const filtered = useMemo(
-    () => members.filter((m) => m.name.includes(search) || (m.phone ?? '').includes(search)),
+    () => members.filter((m) => matchesMemberSearch(m, search)),
     [members, search],
   )
 
@@ -2063,11 +2064,8 @@ function Birthdays({ showToast }) {
   const isCurrentMonth = appliedFrom === defaults.from && appliedTo === defaults.to
 
   const filtered = useMemo(() => {
-    const q = search.trim()
-    if (!q) return list
-    return list.filter(
-      (m) => m.name.includes(q) || (m.phone ?? '').includes(q) || (m.batch ?? '').includes(q),
-    )
+    if (!search.trim()) return list
+    return list.filter((m) => matchesMemberSearch(m, search))
   }, [list, search])
 
   const monthLabel = useMemo(() => {
